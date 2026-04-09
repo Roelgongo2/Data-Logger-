@@ -1,0 +1,161 @@
+/*
+ * ============================================================
+ *  DHT22 Temperature & Humidity Data Logger
+ * ============================================================
+ *  Reads temperature (°C) and humidity (%) from a DHT22 sensor
+ *  every 60 seconds and saves each reading to "datalog.csv"
+ *  on an SD card.
+ *
+ *  Hardware:
+ *    - Arduino Uno
+ *    - DHT22 on digital pin 2 (10kΩ pull-up to 5V)
+ *    - SD card module on SPI (CS = pin 10)
+ *
+ *  CSV format:
+ *    time_sec,temperature_c,humidity
+ *    0,24.1,58.2
+ *    60,24.3,57.9
+ *    ...
+ * ============================================================
+ */
+
+/* ── Libraries ───────────────────────────────────────────── */
+#include <DHT.h>   // Adafruit DHT sensor library
+#include <SPI.h>   // SPI bus (used by the SD library)
+#include <SD.h>    // SD card read/write
+
+/* ── Pin Definitions ─────────────────────────────────────── */
+#define DHT_PIN        2     // DHT22 DATA pin
+#define DHT_TYPE       DHT22 // Sensor type (DHT22 / AM2302)
+#define SD_CS_PIN      10    // SD card module Chip Select pin
+
+/* ── Timing ──────────────────────────────────────────────── */
+const unsigned long LOG_INTERVAL_MS = 60000; // 60 seconds in milliseconds
+
+/* ── Global Objects ──────────────────────────────────────── */
+DHT dht(DHT_PIN, DHT_TYPE);   // Create DHT sensor object
+
+/* ── Global Variables ────────────────────────────────────── */
+unsigned long previousMillis = 0;   // Tracks the last log time
+unsigned long elapsedSeconds = 0;   // Running time counter for CSV
+bool sdReady = false;               // Flag: did the SD card initialise?
+
+/* ── File name on the SD card ────────────────────────────── */
+const char* FILE_NAME = "datalog.csv";
+
+/* ============================================================
+ *  SETUP — runs once at power-on / reset
+ * ============================================================ */
+void setup() {
+
+  /* --- Start serial communication for debugging ----------- */
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // Wait for Serial Monitor on boards with native USB
+  }
+  Serial.println(F("==================================="));
+  Serial.println(F("  DHT22 Data Logger — Starting Up"));
+  Serial.println(F("==================================="));
+
+  /* --- Initialise the DHT22 sensor ----------------------- */
+  dht.begin();
+  Serial.println(F("[OK]  DHT22 sensor initialised."));
+
+  /* --- Initialise the SD card ---------------------------- */
+  Serial.print(F("[..] Initialising SD card... "));
+  if (SD.begin(SD_CS_PIN)) {
+    sdReady = true;
+    Serial.println(F("OK!"));
+  } else {
+    sdReady = false;
+    Serial.println(F("FAILED!"));
+    Serial.println(F("[ERR] SD card not detected."));
+    Serial.println(F("      Check wiring, CS pin, and card format (FAT16/FAT32)."));
+  }
+
+  /* --- Write CSV header if the file does not exist yet --- */
+  if (sdReady) {
+    if (!SD.exists(FILE_NAME)) {
+      // File doesn't exist → create it and write the header row
+      File dataFile = SD.open(FILE_NAME, FILE_WRITE);
+      if (dataFile) {
+        dataFile.println(F("time_sec,temperature_c,humidity"));
+        dataFile.close();
+        Serial.println(F("[OK]  Created datalog.csv with header."));
+      } else {
+        Serial.println(F("[ERR] Could not create datalog.csv!"));
+      }
+    } else {
+      Serial.println(F("[OK]  datalog.csv already exists — appending."));
+    }
+  }
+
+  Serial.println(F("-----------------------------------"));
+  Serial.println(F("Logging every 60 seconds...\n"));
+
+  /* --- Take the first reading immediately at t = 0 ------- */
+  logReading();
+}
+
+/* ============================================================
+ *  LOOP — runs repeatedly after setup()
+ * ============================================================ */
+void loop() {
+
+  unsigned long currentMillis = millis();
+
+  /* Check if 60 seconds have passed since the last reading */
+  if (currentMillis - previousMillis >= LOG_INTERVAL_MS) {
+    previousMillis = currentMillis;   // Reset the timer
+    elapsedSeconds += 60;             // Advance the time counter
+    logReading();                     // Take and store a reading
+  }
+
+  /*
+   * You can add other non-blocking tasks here.
+   * Do NOT use delay() — it would block the whole program.
+   */
+}
+
+/* ============================================================
+ *  logReading() — reads the sensor and writes one CSV line
+ * ============================================================ */
+void logReading() {
+
+  /* --- Read humidity and temperature from the DHT22 ------ */
+  float humidity    = dht.readHumidity();       // % RH
+  float temperature = dht.readTemperature();    // °C
+
+  /* --- Check for sensor read errors ---------------------- */
+  if (isnan(humidity) || isnan(temperature)) {
+    Serial.println(F("[ERR] Failed to read from DHT22 sensor! Skipping this reading."));
+    return;   // Skip this cycle; do not write bad data
+  }
+
+  /* --- Build the CSV line -------------------------------- */
+  // Format:  time_sec,temperature_c,humidity
+  String dataLine = "";
+  dataLine += String(elapsedSeconds);
+  dataLine += ",";
+  dataLine += String(temperature, 1);   // 1 decimal place
+  dataLine += ",";
+  dataLine += String(humidity, 1);      // 1 decimal place
+
+  /* --- Print to Serial Monitor --------------------------- */
+  Serial.print(F("[LOG] "));
+  Serial.println(dataLine);
+
+  /* --- Write to SD card ---------------------------------- */
+  if (sdReady) {
+    File dataFile = SD.open(FILE_NAME, FILE_WRITE);  // Open for append
+    if (dataFile) {
+      dataFile.println(dataLine);   // Write the CSV line
+      dataFile.close();             // Always close to flush data!
+      Serial.println(F("       -> Saved to SD card."));
+    } else {
+      Serial.println(F("[ERR] Could not open datalog.csv for writing!"));
+    }
+  } else {
+    Serial.println(F("[WARN] SD card not available — data NOT saved."));
+  }
+}
