@@ -1,55 +1,63 @@
-README
-📌 DHT22 Data Logger
+🧪 DHT22 Data Logger (Arduino)
 
-This project is an embedded system that collects environmental data using a DHT22 sensor and stores it on an SD card in CSV format for later analysis.
+A complete embedded system that reads environmental data using a DHT22 sensor, displays it in real-time on an OLED screen, and logs it to an SD card in CSV format for later analysis.
 
-⚙️ Features
-Reads temperature (°C) and humidity (%)
-Logs data every 60 seconds
-Saves data to datalog.csv on SD card
-Uses non-blocking timing (millis())
-Handles sensor and SD card errors
-Outputs logs to Serial Monitor
-🧰 Hardware Used
+🚀 Features
+📡 Reads temperature and humidity from DHT22
+💾 Logs data to SD card (CSV format)
+🖥 Displays live data on SSD1306 OLED
+⏱ Non-blocking timing using millis()
+⚠ Basic error handling for sensor and SD card
+📊 Ready for data analysis (Python, Excel, etc.)
+🔌 Hardware Used
 Arduino Uno
-DHT22 sensor
-SD card module
-SD card (FAT16/FAT32)
-Breadboard & jumper wires
-10kΩ resistor
-🔌 Wiring
-DHT22
-VCC → 5V
-GND → GND
-DATA → Pin 2
-10kΩ resistor between VCC and DATA
+DHT22 Temperature & Humidity Sensor
+SSD1306 OLED Display (I2C)
 SD Card Module (SPI)
-VCC → 5V
-GND → GND
-CS → Pin 10
-MOSI → Pin 11
-MISO → Pin 12
-SCK → Pin 13
-📂 Data Format
+MicroSD Card
+🔗 Wiring
+Component	Pin	Arduino
+DHT22	DATA	D2
+OLED	SDA / SCL	A4 / A5
+SD Card	CS	D10
+SD Card	MOSI / MISO / SCK	D11 / D12 / D13
+📂 Output Format
 
-Data is saved in CSV format:
+Data is saved in data.csv:
 
-time_sec,temperature_c,humidity
-0,24.1,58.2
-60,24.3,57.9
-120,24.2,58.1
-🚀 How It Works
-Initializes sensor and SD card
-Creates datalog.csv if it doesn’t exist
-Reads data every 60 seconds
-Saves each reading to SD card
-Prints logs to Serial Monitor
-⚠️ Common Issues
-SD card not detected → check wiring & format
-Sensor returns NaN → wiring or missing pull-up resistor
-File not saving → ensure SD module CS pin is correct
-🔧 Future Improvements
-Add RTC module for real timestamps
-Store min/max values
-Visualize data with Python
-Use ESP32 for wireless logging
+time_seconds,temperature_c,humidity_percent
+10,23.4,45.2
+20,23.5,44.9
+🧠 How It Works
+The system reads sensor data every 10 seconds
+Data is:
+displayed on OLED
+printed to Serial Monitor
+saved to SD card
+Timing is controlled using millis() to avoid blocking the system
+⚠ Error Handling
+Detects failed DHT22 readings
+Detects SD card initialization errors
+Prevents writing invalid data
+🔧 Possible Improvements
+Add RTC module (DS3231) for real timestamps
+Improve data filtering (remove noisy readings)
+Add buttons for start/stop logging
+Send data wirelessly (WiFi/Bluetooth)
+Create real-time dashboard
+📈 Next Step
+
+Use the generated CSV file to:
+
+plot graphs (Python / Excel)
+analyze trends
+build a full monitoring system
+🧠 Learning Outcomes
+
+This project covers:
+
+Embedded programming (Arduino)
+Sensor integration
+SPI & I2C communication
+Data logging systems
+Real-time display systems
